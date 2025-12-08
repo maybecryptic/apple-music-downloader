@@ -852,7 +852,7 @@ func ripTrack(track *task.Track, token string, mediaUserToken string) {
 	Tag_string := strings.Join(stringsToJoin, " ")
 
 	songName := strings.NewReplacer(
-		"{Artist}", LimitString(track.Attributes.ArtistName),
+		"{Artist}", LimitString(track.Resp.Attributes.ArtistName),
 		"{SongId}", track.ID,
 		"{SongNumer}", fmt.Sprintf("%02d", track.TaskNum),
 		"{SongName}", LimitString(track.Resp.Attributes.Name),
@@ -990,6 +990,15 @@ func ripTrack(track *task.Track, token string, mediaUserToken string) {
 
 	counter.Success++
 	okDict[track.PreID] = append(okDict[track.PreID], track.TaskNum)
+
+	// remove cover file after it has been embedded
+	exists, err := fileExists(track.CoverPath)
+	if err != nil {
+		fmt.Println("Failed to check if cover exists.")
+	}
+	if exists {
+		_ = os.Remove(track.CoverPath)
+	}
 }
 
 func ripStation(albumId string, token string, storefront string, mediaUserToken string) error {
@@ -1693,41 +1702,41 @@ func ripPlaylist(playlistId string, token string, storefront string, mediaUserTo
 func writeMP4Tags(track *task.Track, lrc string) error {
 	t := &mp4tag.MP4Tags{
 		Title:      track.Resp.Attributes.Name,
-		TitleSort:  track.Resp.Attributes.Name,
+		// TitleSort:  track.Resp.Attributes.Name,
 		Artist:     track.Resp.Attributes.ArtistName,
-		ArtistSort: track.Resp.Attributes.ArtistName,
-		Custom: map[string]string{
-			"PERFORMER":   track.Resp.Attributes.ArtistName,
-			"RELEASETIME": track.Resp.Attributes.ReleaseDate,
-			"ISRC":        track.Resp.Attributes.Isrc,
-			"LABEL":       "",
-			"UPC":         "",
-		},
-		Composer:     track.Resp.Attributes.ComposerName,
-		ComposerSort: track.Resp.Attributes.ComposerName,
+		// ArtistSort: track.Resp.Attributes.ArtistName,
+		// Custom: map[string]string{
+		// 	"PERFORMER":   track.Resp.Attributes.ArtistName,
+		// 	"RELEASETIME": track.Resp.Attributes.ReleaseDate,
+		// 	"ISRC":        track.Resp.Attributes.Isrc,
+		// 	"LABEL":       "",
+		// 	"UPC":         "",
+		// },
+		// Composer:     track.Resp.Attributes.ComposerName,
+		// ComposerSort: track.Resp.Attributes.ComposerName,
 		CustomGenre:  track.Resp.Attributes.GenreNames[0],
 		Lyrics:       lrc,
 		TrackNumber:  int16(track.Resp.Attributes.TrackNumber),
-		DiscNumber:   int16(track.Resp.Attributes.DiscNumber),
+		// DiscNumber:   int16(track.Resp.Attributes.DiscNumber),
 		Album:        track.Resp.Attributes.AlbumName,
-		AlbumSort:    track.Resp.Attributes.AlbumName,
+		// AlbumSort:    track.Resp.Attributes.AlbumName,
 	}
 
-	if track.PreType == "albums" {
-		albumID, err := strconv.ParseUint(track.PreID, 10, 32)
-		if err != nil {
-			return err
-		}
-		t.ItunesAlbumID = int32(albumID)
-	}
+	// if track.PreType == "albums" {
+	// 	albumID, err := strconv.ParseUint(track.PreID, 10, 32)
+	// 	if err != nil {
+	// 		return err
+	// 	}
+	// 	t.ItunesAlbumID = int32(albumID)
+	// }
 
-	if len(track.Resp.Relationships.Artists.Data) > 0 {
-		artistID, err := strconv.ParseUint(track.Resp.Relationships.Artists.Data[0].ID, 10, 32)
-		if err != nil {
-			return err
-		}
-		t.ItunesArtistID = int32(artistID)
-	}
+	// if len(track.Resp.Relationships.Artists.Data) > 0 {
+	// 	artistID, err := strconv.ParseUint(track.Resp.Relationships.Artists.Data[0].ID, 10, 32)
+	// 	if err != nil {
+	// 		return err
+	// 	}
+	// 	t.ItunesArtistID = int32(artistID)
+	// }
 
 	if (track.PreType == "playlists" || track.PreType == "stations") && !Config.UseSongInfoForPlaylist {
 		t.DiscNumber = 1
@@ -1749,14 +1758,14 @@ func writeMP4Tags(track *task.Track, lrc string) error {
 		t.Copyright = track.AlbumData.Attributes.Copyright
 		t.Publisher = track.AlbumData.Attributes.RecordLabel
 	} else {
-		t.DiscTotal = int16(track.DiscTotal)
-		t.TrackTotal = int16(track.AlbumData.Attributes.TrackCount)
-		t.AlbumArtist = track.AlbumData.Attributes.ArtistName
-		t.AlbumArtistSort = track.AlbumData.Attributes.ArtistName
-		t.Custom["UPC"] = track.AlbumData.Attributes.Upc
-		t.Date = track.AlbumData.Attributes.ReleaseDate
-		t.Copyright = track.AlbumData.Attributes.Copyright
-		t.Publisher = track.AlbumData.Attributes.RecordLabel
+		// t.DiscTotal = int16(track.DiscTotal)
+		// t.TrackTotal = int16(track.AlbumData.Attributes.TrackCount)
+		// t.AlbumArtist = track.AlbumData.Attributes.ArtistName
+		// t.AlbumArtistSort = track.AlbumData.Attributes.ArtistName
+		// t.Custom["UPC"] = track.AlbumData.Attributes.Upc
+		t.Date = track.AlbumData.Attributes.ReleaseDate[:4]
+		// t.Copyright = track.AlbumData.Attributes.Copyright
+		// t.Publisher = track.AlbumData.Attributes.RecordLabel
 	}
 
 	if track.Resp.Attributes.ContentRating == "explicit" {
